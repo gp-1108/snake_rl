@@ -10,6 +10,3 @@ class RandomAgent(BaseAgent):
     
     def get_action(self, board):
         return np.random.choice(range(4))
-    
-    def learn(self, actions, rewards):
-        pass

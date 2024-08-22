@@ -2,49 +2,79 @@ from .BaseAgent import BaseAgent
 import numpy as np
 
 class BaselineAgent(BaseAgent):
-    HEAD = 4
-    BODY = 3
-    FRUIT = 2
-    EMPTY = 1
-    WALL = 0
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
-    NONE = 4
     def __init__(self, boards):
         super().__init__(boards)
-    
+        self.dirs = np.array([(1, 0), (0, 1), (-1, 0), (0, -1)])
+
     def get_actions(self):
-        actions = []
-        for i in range(self.boards.shape[0]):
-            actions.append(self.get_action(self.boards[i]))
-        return np.array(actions).reshape(-1, 1)
+        # Ensure boards is 3D: (num_boards, height, width)
+        if self.boards.ndim == 2:
+            self.boards = self.boards[np.newaxis, :, :]
+
+        num_boards, height, width = self.boards.shape
+
+        # Get positions of heads and fruits for all boards
+        heads = np.array([np.unravel_index(np.argmax(b == self.HEAD), (height, width)) for b in self.boards])
+        fruits = np.array([np.unravel_index(np.argmax(b == self.FRUIT), (height, width)) for b in self.boards])
+
+        # Calculate new head positions for all directions and all boards
+        new_heads = heads[:, np.newaxis, :] + self.dirs
+
+        # Clip new head positions to be within board boundaries
+        new_heads = np.clip(new_heads, 0, np.array([height-1, width-1]))
+
+        # Create masks for illegal moves (walls and body)
+        illegal_mask = np.zeros((num_boards, 4), dtype=bool)
+        for i in range(num_boards):
+            for j, new_head in enumerate(new_heads[i]):
+                if (self.boards[i][new_head[0], new_head[1]] == self.WALL or 
+                    self.boards[i][new_head[0], new_head[1]] == self.BODY):
+                    illegal_mask[i, j] = True
+
+        # Calculate distances for all new head positions to fruits
+        distances = np.linalg.norm(new_heads - fruits[:, np.newaxis, :], axis=2)
+
+        # Apply penalty for illegal moves
+        distances[illegal_mask] = np.inf
+
+        # Choose the direction with the minimum distance for each board
+        actions = np.argmin(distances, axis=1)
+
+        # Check for cases where all moves are illegal
+        all_illegal = np.all(illegal_mask, axis=1)
+        actions[all_illegal] = self.NONE
+
+        return actions.reshape(-1, 1)
     
     def get_action(self, board):
-        # Getting the infos from the board
-        head = np.argwhere(board == self.HEAD)[0]
-        fruit = np.argwhere(board == self.FRUIT)[0]
-        bodies = np.argwhere(board == self.BODY)
-        walls = np.argwhere(board == self.WALL)
+        height, width = board.shape
 
-        # Getting the new possible heads positions UP, RIGHT, DOWN, LEFT
-        dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-        new_heads = [head + np.array(dir) for dir in dirs]
+        # Get positions of head and fruit
+        head = np.unravel_index(np.argmax(board == self.HEAD), (height, width))
+        fruit = np.unravel_index(np.argmax(board == self.FRUIT), (height, width))
 
+        # Calculate new head positions for all directions
+        new_heads = np.array(head) + self.dirs
 
-        # Calculate distances while considering illegal moves
-        distances = []
-        for new_head in new_heads:
-            if any(np.array_equal(new_head, w) for w in walls) or any(np.array_equal(new_head, b) for b in bodies):
-                distances.append(float('inf'))  # Assign a high cost for illegal moves
-            else:
-                distances.append(np.linalg.norm(new_head - fruit))
+        # Clip new head positions to be within board boundaries
+        new_heads = np.clip(new_heads, 0, np.array([height-1, width-1]))
 
-        # Choosing the direction that gets closer to the fruit
-        directions = [self.UP, self.RIGHT, self.DOWN, self.LEFT]
+        # Create mask for illegal moves (walls and body)
+        illegal_mask = np.array([
+            board[new_head[0], new_head[1]] == self.WALL or 
+            board[new_head[0], new_head[1]] == self.BODY
+            for new_head in new_heads
+        ])
 
-        return directions[np.argmin(distances)]
-    
-    def learn(self, actions, rewards):
-        pass
+        # Calculate distances for all new head positions to fruit
+        distances = np.linalg.norm(new_heads - fruit, axis=1)
+
+        # Apply penalty for illegal moves
+        distances[illegal_mask] = np.inf
+
+        # If all moves are illegal, return NONE
+        if np.all(illegal_mask):
+            return self.NONE
+
+        # Choose the direction with the minimum distance
+        return np.argmin(distances)
