@@ -2,6 +2,7 @@ from .BaseAgent import BaseAgent
 import tensorflow.keras as K
 import tensorflow as tf
 import numpy as np
+import time
 
 class DQNAgent(BaseAgent):
     def __init__(self, boards, alpha=0.1, gamma=0.95):
@@ -29,21 +30,30 @@ class DQNAgent(BaseAgent):
         best_action = tf.argmax(out)
         return best_action
     
-    def learn(self, prev_boards, actions, rewards, next_boards):
+    def learn(self, prev_boards, actions, rewards, next_boards):        
+        # Reshape previous boards
         input = prev_boards.reshape(self.n_boards, -1)
+        
+        # Predict target Q-values for current states
         target = self.model.predict(input)
+        
+        # Reshape next boards
         next_input = next_boards.reshape(self.n_boards, -1)
+        
+        # Predict target Q-values for next states
         next_target = self.model.predict(next_input)
-        for i in range(self.n_boards):
-            target[i, actions[i]] = rewards[i] + self.gamma * tf.reduce_max(next_target[i])
-        output = target + self.alpha * (target - target)
-        self.model.train_on_batch(input, output)
-
+        
+        # Efficiently update target values using vectorized operations
+        max_next_target = tf.reduce_max(next_target, axis=1)
+        target[np.arange(self.n_boards), actions] = rewards + self.gamma * max_next_target
+        
+        # Fit the model to the updated targets
+        self.model.fit(input, target, epochs=1, verbose=0)
 
     def _build_model(self):
         model = K.Sequential()
-        model.add(K.layers.Dense(10, input_dim=self.input_size, activation="relu"))
-        model.add(K.layers.Dense(10, activation="relu"))
+        model.add(K.layers.Dense(64, input_dim=self.input_size, activation="relu"))
+        model.add(K.layers.Dense(64, activation="relu"))
         model.add(K.layers.Dense(self.output_size, activation="linear"))
         model.compile(loss="mse", optimizer=K.optimizers.Adam(learning_rate=self.lr))
         return model
