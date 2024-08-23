@@ -4,13 +4,14 @@ import tensorflow as tf
 import numpy as np
 
 class DQNAgent(BaseAgent):
-    def __init__(self, boards_sample, alpha=0.1, gamma=0.95, epsilon=1.0, epsilon_min=0.05, decay=0.99):
+    def __init__(self, boards_sample, alpha=0.1, gamma=0.95, epsilon=1.0, epsilon_min=0, decay=0.99):
         self.alpha = alpha
         self.gamma = gamma
         self.lr = 1e-2
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.decay = decay
+        self.temperature = 1.0 # For softmax
         # Model parameters
         if boards_sample.ndim == 2:
             boards_sample = boards_sample[np.newaxis, :, :]
@@ -27,16 +28,22 @@ class DQNAgent(BaseAgent):
         if np.random.rand() <= self.epsilon:
             return np.random.randint(0, self.output_size, size=(n_boards, 1))
         out = self.model.predict(input)
-        best_actions = tf.argmax(out, axis=1)
-        return np.expand_dims(best_actions, axis=1)
+        # Apply softmax with temperature
+        probs = tf.nn.softmax(out / self.temperature, axis=1)
+        # Sample actions based on probabilities
+        actions = tf.random.categorical(tf.math.log(probs), 1)
+        return actions.numpy()
 
     def get_action(self, board):
         input = board.flatten()
         if np.random.rand() <= self.epsilon:
             return np.random.randint(0, self.output_size)
         out = self.model.predict(np.expand_dims(input, axis=0))
-        best_action = tf.argmax(out[0])
-        return best_action.numpy()
+        # Apply softmax with temperature
+        probs = tf.nn.softmax(out[0] / self.temperature)
+        # Sample action based on probabilities
+        action = tf.random.categorical(tf.math.log(probs.reshape(1, -1)), 1)
+        return action.numpy()[0, 0]
 
     def learn(self, prev_boards, actions, rewards, next_boards):
         n_boards = prev_boards.shape[0]
