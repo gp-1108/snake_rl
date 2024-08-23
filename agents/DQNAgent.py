@@ -4,8 +4,7 @@ import tensorflow as tf
 import numpy as np
 
 class DQNAgent(BaseAgent):
-    def __init__(self, boards, alpha=0.1, gamma=0.95, epsilon=1.0, epsilon_min=0.05, decay=0.99):
-        super().__init__(boards)
+    def __init__(self, boards_sample, alpha=0.1, gamma=0.95, epsilon=1.0, epsilon_min=0.05, decay=0.99):
         self.alpha = alpha
         self.gamma = gamma
         self.lr = 1e-2
@@ -13,15 +12,20 @@ class DQNAgent(BaseAgent):
         self.epsilon_min = epsilon_min
         self.decay = decay
         # Model parameters
-        self.n_boards, self.board_h, self.board_w = boards.shape
-        self.input_size = self.board_h * self.board_w
+        if boards_sample.ndim == 2:
+            boards_sample = boards_sample[np.newaxis, :, :]
+        n_boards, height, width = boards_sample.shape
+        self.input_size = height * width
         self.output_size = 5  # UP, DOWN, LEFT, RIGHT, NONE
         self.model = self._build_model()
 
-    def get_actions(self):
-        input = self.boards.reshape(self.n_boards, -1)  # flatten the boards
+    def get_actions(self, boards):
+        if boards.ndim == 2:
+            boards = boards[np.newaxis, :, :]
+        n_boards = boards.shape[0]
+        input = boards.reshape(boards.shape[0], -1)  # flatten the boards
         if np.random.rand() <= self.epsilon:
-            return np.random.randint(0, self.output_size, size=(self.n_boards, 1))
+            return np.random.randint(0, self.output_size, size=(n_boards, 1))
         out = self.model.predict(input)
         best_actions = tf.argmax(out, axis=1)
         return np.expand_dims(best_actions, axis=1)
@@ -35,17 +39,18 @@ class DQNAgent(BaseAgent):
         return best_action.numpy()
 
     def learn(self, prev_boards, actions, rewards, next_boards):
+        n_boards = prev_boards.shape[0]
         # Reshape previous boards
-        input = prev_boards.reshape(self.n_boards, -1)
+        input = prev_boards.reshape(n_boards, -1)
         # Predict target Q-values for current states
         target = self.model.predict(input)
         # Reshape next boards
-        next_input = next_boards.reshape(self.n_boards, -1)
+        next_input = next_boards.reshape(n_boards, -1)
         # Predict target Q-values for next states
         next_target = self.model.predict(next_input)
         # Efficiently update target values using vectorized operations
         max_next_target = tf.reduce_max(next_target, axis=1)
-        target[np.arange(self.n_boards), actions] = rewards + self.gamma * max_next_target
+        target[np.arange(n_boards), actions] = rewards + self.gamma * max_next_target
         # Fit the model to the updated targets
         self.model.fit(input, target, epochs=1, verbose=0)
         

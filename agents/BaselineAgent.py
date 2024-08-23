@@ -2,20 +2,19 @@ from .BaseAgent import BaseAgent
 import numpy as np
 
 class BaselineAgent(BaseAgent):
-    def __init__(self, boards):
-        super().__init__(boards)
+    def __init__(self):
         self.dirs = np.array([(1, 0), (0, 1), (-1, 0), (0, -1)])
 
-    def get_actions(self):
+    def get_actions(self, boards):
         # Ensure boards is 3D: (num_boards, height, width)
-        if self.boards.ndim == 2:
-            self.boards = self.boards[np.newaxis, :, :]
+        if boards.ndim == 2:
+            boards = boards[np.newaxis, :, :]
 
-        num_boards, height, width = self.boards.shape
+        num_boards, height, width = boards.shape
 
         # Get positions of heads and fruits for all boards
-        heads = np.array([np.unravel_index(np.argmax(b == self.HEAD), (height, width)) for b in self.boards])
-        fruits = np.array([np.unravel_index(np.argmax(b == self.FRUIT), (height, width)) for b in self.boards])
+        heads = np.array([np.unravel_index(np.argmax(b == self.HEAD), (height, width)) for b in boards])
+        fruits = np.array([np.unravel_index(np.argmax(b == self.FRUIT), (height, width)) for b in boards])
 
         # Calculate new head positions for all directions and all boards
         new_heads = heads[:, np.newaxis, :] + self.dirs
@@ -27,8 +26,8 @@ class BaselineAgent(BaseAgent):
         illegal_mask = np.zeros((num_boards, 4), dtype=bool)
         for i in range(num_boards):
             for j, new_head in enumerate(new_heads[i]):
-                if (self.boards[i][new_head[0], new_head[1]] == self.WALL or 
-                    self.boards[i][new_head[0], new_head[1]] == self.BODY):
+                if (boards[i][new_head[0], new_head[1]] == self.WALL or 
+                    boards[i][new_head[0], new_head[1]] == self.BODY):
                     illegal_mask[i, j] = True
 
         # Calculate distances for all new head positions to fruits

@@ -11,10 +11,10 @@ class BaseAgent:
     LEFT = 3
     NONE = 4
 
-    def __init__(self, boards):
-        self.boards = boards
+    def __init__(self):
+        raise NotImplementedError()
     
-    def get_actions(self):
+    def get_actions(self, boards):
         raise NotImplementedError()
     
     def get_action(self, board):
