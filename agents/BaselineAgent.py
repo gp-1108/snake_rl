@@ -24,10 +24,13 @@ class BaselineAgent(BaseAgent):
 
         # Create masks for illegal moves (walls and body)
         illegal_mask = np.zeros((num_boards, 4), dtype=bool)
+        wall_mask = np.zeros((num_boards, 4), dtype=bool)
         for i in range(num_boards):
             for j, new_head in enumerate(new_heads[i]):
-                if (boards[i][new_head[0], new_head[1]] == self.WALL or 
-                    boards[i][new_head[0], new_head[1]] == self.BODY):
+                if boards[i][new_head[0], new_head[1]] == self.WALL:
+                    illegal_mask[i, j] = True
+                    wall_mask[i, j] = True
+                elif boards[i][new_head[0], new_head[1]] == self.BODY:
                     illegal_mask[i, j] = True
 
         # Calculate distances for all new head positions to fruits
@@ -41,7 +44,14 @@ class BaselineAgent(BaseAgent):
 
         # Check for cases where all moves are illegal
         all_illegal = np.all(illegal_mask, axis=1)
-        actions[all_illegal] = self.NONE
+        
+        # For boards where all moves are illegal, choose a random non-wall move
+        for i in np.where(all_illegal)[0]:
+            non_wall_moves = np.where(~wall_mask[i])[0]
+            if len(non_wall_moves) > 0:
+                actions[i] = np.random.choice(non_wall_moves)
+            else:
+                actions[i] = self.NONE  # If all moves lead to walls, choose NONE as a last resort
 
         return actions.reshape(-1, 1)
     
