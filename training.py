@@ -144,4 +144,4 @@ plt.show()
 
 # Save the model
 hybrid_model = hybrid_agent.model
-hybrid_model.save_weights("hybrid_model.weights.h5")
+hybrid_model.save_weights("saved_models/hybrid_model.weights.h5")

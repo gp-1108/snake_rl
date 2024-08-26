@@ -30,7 +30,7 @@ base_env = OriginalSnakeEnvironment(NUM_BOARDS, BOARD_SIZE)
 hybrid_env = OriginalSnakeEnvironment(NUM_BOARDS, BOARD_SIZE)
 
 hybrid_agent_test = HybridDQNAgent(hybrid_env.boards)
-hybrid_agent_test.model.load_weights("hybrid_model.weights.h5")
+hybrid_agent_test.model.load_weights("saved_models/hybrid_model.weights.h5")
 baseline_agent_test = BaselineAgent()
 
 # Initialize variables for tracking fruits eaten
