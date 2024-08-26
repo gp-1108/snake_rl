@@ -2,10 +2,29 @@ from .BaseAgent import BaseAgent
 import numpy as np
 
 class BaselineAgent(BaseAgent):
+    """
+    BaselineAgent class represents a simple agent that makes decisions based on the current game board.
+    Attributes:
+        dirs (numpy.ndarray): Array of directions representing possible moves.
+    Methods:
+        get_actions(boards):
+            Takes a 3D array of game boards and returns the optimal action for each board.
+        get_action(board):
+            Takes a 2D array representing a single game board and returns the optimal action.
+    """
     def __init__(self):
         self.dirs = np.array([(1, 0), (0, 1), (-1, 0), (0, -1)])
 
     def get_actions(self, boards):
+        """
+        Calculates the actions to be taken by the agent based on the given game boards.
+        Args:
+            boards (ndarray): The game boards. Should be 3D with shape (num_boards, height, width).
+        Returns:
+            ndarray: The actions to be taken by the agent. Each action corresponds to a board and is represented as an integer.
+        Raises:
+            None
+        """
         # Ensure boards is 3D: (num_boards, height, width)
         if boards.ndim == 2:
             boards = boards[np.newaxis, :, :]
@@ -56,6 +75,19 @@ class BaselineAgent(BaseAgent):
         return actions.reshape(-1, 1)
     
     def get_action(self, board):
+        """
+        Calculates the action to take based on the current state of the board.
+
+        Parameters:
+        - board (numpy.ndarray): The game board represented as a 2D numpy array.
+
+        Returns:
+        - int: The index of the action to take.
+
+        Raises:
+        - None
+
+        """
         height, width = board.shape
 
         # Get positions of head and fruit
@@ -81,9 +113,10 @@ class BaselineAgent(BaseAgent):
         # Apply penalty for illegal moves
         distances[illegal_mask] = np.inf
 
-        # If all moves are illegal, return NONE
+        # If all moves are illegal, return a random move that is not a wall
         if np.all(illegal_mask):
-            return self.NONE
+            non_wall_moves = np.where(board != self.WALL)[0]
+            return np.random.choice(non_wall_moves)
 
         # Choose the direction with the minimum distance
         return np.argmin(distances)
