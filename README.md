@@ -66,6 +66,7 @@ This project demonstrates the importance of setting appropriate rewards and goal
 ```sh
 └── /
     ├── README.md
+    ├── Report - RL Snake.pdf
     ├── agents
     │   ├── BaseAgent.py
     │   ├── BaselineAgent.py
